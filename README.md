@@ -1,1 +1,1 @@
-# Rust-actix-web-starter
+# Rust actix web starter
