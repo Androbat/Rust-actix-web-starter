@@ -10,3 +10,4 @@ In order to succesfully be able to use the following code. Run the following com
 - cargo add chrono --features serde
 - cargo add env_logger
 - cargo add uuid --features v4
+- cargo install cargo-watch
