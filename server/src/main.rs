@@ -1,41 +1,43 @@
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+mod handler;
+mod model;
+mod response;
 
-// Macro to denote the type of method and route
-#[get("/")]
-async fn hello()-> impl Responder {
-    // HttpResponse is just a "struct" allowing to respond to the server,
-    // which also contains the "status" and the requests parts such as "body"
-    HttpResponse::Ok().body("Hello world")
-}
+use actix_cors::Cors;
+use actix_web::middleware::Logger;
+use actix_web::{http::header, web, App, HttpServer};
+use model::AppState;
 
-#[post("/echo")]
-async fn echo(req_body: String) -> impl Responder {
-    HttpResponse::Ok().body(req_body)
-}
-
-async fn manual_hello() -> impl Responder {
-    HttpResponse::Ok().body("Hey there!")
-}
-
-#[get("/author")]
-async fn own_test() -> impl Responder {
-    let s = "Hermann Hesse".to_string();
-    HttpResponse::Ok().body(s)
-}
-
-#[actix_web::main] // Defines that it is the entry point for the app
+#[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
-        App::new() // We are creating new service (handlers)
-            .service(hello)
-            .service(echo)
-            .service(own_test)
-            // That's how handlers are defined when they do not contain the macro #[method(/)]
-            // .route("/", we::method().to(handler))
-            .route("/hey", web::get().to(manual_hello)) 
+    if std::env::var_os("RUST_LOG").is_none() {
+        std::env::set_var("RUST_LOG", "actix_web=info");
+    }
+    env_logger::init();
+
+    let todo_db = AppState::init();
+    let app_data = web::Data::new(todo_db);
+
+    println!("🚀 Server started successfully");
+
+    HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:3000")
+            .allowed_origin("http://localhost:3000/")
+            .allowed_methods(vec!["GET", "POST"])
+            .allowed_headers(vec![
+                header::CONTENT_TYPE,
+                header::AUTHORIZATION,
+                header::ACCEPT,
+            ])
+            .supports_credentials();
+        App::new()
+            .app_data(app_data.clone())
+            .configure(handler::config)
+            .wrap(cors)
+            .wrap(Logger::default())
     })
-    // .bind("localhost", port) -> just define the entry point of the application
-    .bind(("127.0.0.1", 8080))?
-    .run() 
-    .await // Since it is an async function we must await the call
+    .bind(("127.0.0.1", 8000))?
+    .run()
+    .await
 }
+
